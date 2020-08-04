@@ -19,21 +19,23 @@ async function searchShows(query) {
   // TODO: Make an ajax request to the searchShows api.  Remove hard coded data.
   let url = `http://api.tvmaze.com/search/shows?q=${query}`;
   let res = await axios.get(url);
-  console.log(res.data);
-  for (let info of res.data){
+  // console.log(res.data);
+  
+  const shows = res.data.map(info => {
     let show = info.show;    
-    return [
-      {
+    return {
         id: show.id,
         name: show.name,
         summary: show.summary,        
-        image: show.image ? show.image.original : "http://tinyurl.com/missing-tv"
-      }
-    ]
-  };  
-}
-
-
+        image: show.image ? show.image.original : "http://tinyurl.com/missing-tv",
+        language: show.language,
+        genres: show.genres,
+        rating: show.rating
+      };    
+  });
+  // console.log(shows);
+  return shows;  
+};
 
 /** Populate shows list:
  *     - given list of shows, add shows to DOM
@@ -42,23 +44,27 @@ async function searchShows(query) {
 function populateShows(shows) {
   const $showsList = $("#shows-list");
   $showsList.empty();
+  
 
-  for (let show of shows) {
+  for (let show of shows) {    
     let $item = $(
-      `<div class="col-md-6 col-lg-3 Show" data-show-id="${show.id}">
+      `<div class="col-md-6 Show" data-show-id="${show.id}">
          <div class="card" data-show-id="${show.id}">
            <img class="card-img-top" src="${show.image}">
            <div class="card-body">
              <h5 class="card-title">${show.name}</h5>
+             <p class="card-text"> Language: ${show.language}</p>
+             <p class="card-text"> Genres: ${show.genres}</p>
+             <p class="card-text"> Rating: ${show.rating.average}</p>
              <p class="card-text">${show.summary}</p>             
-           </div>
+             <button class="btn btn-primary get-episodes" data-toggle="modal" data-target="#staticBackdrop">Episodes</button>
+           </div>           
          </div>
        </div>
-      `);
-
+      `);      
     $showsList.append($item);
-  }
-}
+  };
+};
 
 
 /** Handle search form submission:
@@ -86,8 +92,32 @@ $("#search-form").on("submit", async function handleSearch (evt) {
 
 async function getEpisodes(id) {
   // TODO: get episodes from tvmaze
-  //       you can get this by making GET request to
-  //       http://api.tvmaze.com/shows/SHOW-ID-HERE/episodes
+  const response = await axios.get(`http://api.tvmaze.com/shows/${id}/episodes`)
+  console.log(response);
+  const episodes = response.data.map(episode => ({
+    id: episode.id,
+    name: episode.name,
+    season: episode.season,
+    number: episode.number
+  }));
+  // console.log(episodes);
+  return episodes;
+  // console.log(episodes);
+};
 
-  // TODO: return array-of-episode-info, as described in docstring above
-}
+function populateEpisodes(episodes) {
+  const $episodeList = $('#episodes-list');
+  $episodeList.empty();
+
+  for (let episode of episodes) {
+    let $item = $(`<li>${episode.name} (season ${episode.season}, number ${episode.number})</li>`);
+    $episodeList.append($item);
+  };
+  $('#episodes-area').show(); 
+};
+
+$('#shows-list').on('click',".get-episodes", async function handleEpisodeClick(event){       
+  let showId = $(event.target).closest(".Show").data("show-id");
+  let episodes = await getEpisodes(showId);
+  populateEpisodes(episodes);
+});
